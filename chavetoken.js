@@ -72,4 +72,5 @@ async function getAuthHeaders() {
 }
 
 // Exporta as configurações e as funções necessárias
+
 export { API_CONFIG, getIntegrationToken, getAuthHeaders };
