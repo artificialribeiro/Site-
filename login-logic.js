@@ -1,22 +1,71 @@
 import { getAuthHeaders, API_CONFIG } from './chavetoken.js';
 
-// Seleção dos elementos do DOM
 const loginForm = document.getElementById('loginForm');
 const cpfInput = document.getElementById('cpf');
 const senhaInput = document.getElementById('senha');
 const errorMsg = document.getElementById('error-msg');
 const btnSubmit = document.getElementById('btnSubmit');
 
-/**
- * 1. MÁSCARA DE CPF
- * Formata o CPF enquanto o usuário digita (000.000.000-00)
- */
+// Elementos da nova funcionalidade de sessão ativa
+const loginState = document.getElementById('loginState');
+const loggedInState = document.getElementById('loggedInState');
+const loggedUserName = document.getElementById('loggedUserName');
+const btnContinue = document.getElementById('btnContinue');
+const btnLogout = document.getElementById('btnLogout');
+
+// --- 0. VERIFICAÇÃO DE SESSÃO AO ABRIR A PÁGINA ---
+document.addEventListener('DOMContentLoaded', () => {
+    verificarSessaoAtiva();
+});
+
+function verificarSessaoAtiva() {
+    const sessaoCodificada = localStorage.getItem('boutique_diniz_session');
+    
+    if (sessaoCodificada) {
+        try {
+            // Desfaz o Base64
+            const jsonString = atob(sessaoCodificada);
+            const sessao = JSON.parse(jsonString);
+
+            if (sessao.logado && sessao.usuario) {
+                // Pega apenas o primeiro nome para ficar amigável
+                const primeiroNome = sessao.usuario.nome.split(' ')[0];
+                loggedUserName.innerText = primeiroNome;
+
+                // Esconde o formulário normal e mostra o cartão de boas-vindas
+                loginState.classList.add('hidden');
+                loggedInState.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error("Sessão corrompida ou inválida.", error);
+            localStorage.removeItem('boutique_diniz_session'); // Limpa o erro
+        }
+    }
+}
+
+// Ações dos novos botões da tela de retorno
+if (btnContinue) {
+    btnContinue.addEventListener('click', () => {
+        // Redireciona para a página de verificação conforme solicitado
+        window.location.href = 'verificacao.html';
+    });
+}
+
+if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+        // Apaga a sessão e volta para o formulário limpo
+        localStorage.removeItem('boutique_diniz_session');
+        loggedInState.classList.add('hidden');
+        loginState.classList.remove('hidden');
+        cpfInput.focus();
+    });
+}
+
+
+// --- 1. MÁSCARA DE CPF ---
 cpfInput.addEventListener('input', (e) => {
-    let value = e.target.value.replace(/\D/g, ""); // Remove tudo que não é número
-
-    if (value.length > 11) value = value.slice(0, 11); // Limita tamanho
-
-    // Adiciona os pontos e traço
+    let value = e.target.value.replace(/\D/g, "");
+    if (value.length > 11) value = value.slice(0, 11);
     if (value.length > 9) {
         value = value.replace(/^(\d{3})(\d{3})(\d{3})(\d{2}).*/, "$1.$2.$3-$4");
     } else if (value.length > 6) {
@@ -24,31 +73,23 @@ cpfInput.addEventListener('input', (e) => {
     } else if (value.length > 3) {
         value = value.replace(/^(\d{3})(\d{3}).*/, "$1.$2");
     }
-    
     e.target.value = value;
 });
 
-/**
- * 2. FUNÇÃO DE LOGIN
- * Gerencia o envio do formulário
- */
+// --- 2. FUNÇÃO DE LOGIN ---
 loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault(); // Impede a página de recarregar
+    e.preventDefault();
     
-    // Reset visual
     mostrarErro(false);
     btnSubmit.innerText = 'Autenticando...';
     btnSubmit.disabled = true;
 
-    // Prepara os dados (Remove pontuação do CPF para enviar limpo)
     const cpfLimpo = cpfInput.value.replace(/\D/g, "");
     const senha = senhaInput.value;
 
     try {
-        // Pega os headers de segurança (X-API-KEY + X-API-TOKEN)
         const authHeaders = await getAuthHeaders();
 
-        // Faz a chamada para a API
         const response = await fetch(`${API_CONFIG.baseUrl}/api/clientes/login`, {
             method: 'POST',
             headers: authHeaders,
@@ -61,17 +102,15 @@ loginForm.addEventListener('submit', async (e) => {
         const result = await response.json();
 
         if (response.ok && result.success) {
-            // SUCESSO: Salva sessão e redireciona
             salvarSessaoSegura(result.data);
             
-            // Pequeno delay para usuário ver que deu certo (opcional)
             btnSubmit.innerText = 'Sucesso!';
             setTimeout(() => {
-                window.location.href = 'index.html'; // Redireciona para a Home
+                // REDIRECIONA PARA VERIFICAÇÃO DE SEGURANÇA
+                window.location.href = 'verificacao.html';
             }, 500);
 
         } else {
-            // ERRO DA API (Ex: Senha incorreta)
             throw new Error(result.message || 'CPF ou senha inválidos.');
         }
 
@@ -83,11 +122,7 @@ loginForm.addEventListener('submit', async (e) => {
     }
 });
 
-/**
- * 3. SALVAMENTO SEGURO (Storage)
- * Salva os dados no LocalStorage codificados em Base64
- * para não ficarem expostos como texto puro.
- */
+// --- 3. SALVAMENTO SEGURO (Storage) ---
 function salvarSessaoSegura(userData) {
     const sessao = {
         usuario: {
@@ -96,22 +131,16 @@ function salvarSessaoSegura(userData) {
             email: userData.email,
             celular: userData.celular
         },
-        token_acesso: new Date().getTime(), // Timestamp do login
+        token_acesso: new Date().getTime(),
         logado: true
     };
 
-    // Converte para String JSON
     const jsonString = JSON.stringify(sessao);
-    
-    // Codifica em Base64 (Obfuscação básica)
-    const dadosCodificados = btoa(jsonString);
-
+    const dadosCodificados = btoa(jsonString); // Obfuscação simples
     localStorage.setItem('boutique_diniz_session', dadosCodificados);
 }
 
-/**
- * Helper para exibir mensagens de erro na tela
- */
+// Helper de erro
 function mostrarErro(mensagem) {
     if (!mensagem) {
         errorMsg.style.display = 'none';
@@ -120,7 +149,6 @@ function mostrarErro(mensagem) {
     errorMsg.innerText = mensagem;
     errorMsg.style.display = 'block';
     
-    // Animaçãozinha de "shake" se quiser (opcional)
     loginForm.classList.add('shake');
     setTimeout(() => loginForm.classList.remove('shake'), 500);
 }
