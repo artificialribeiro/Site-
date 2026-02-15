@@ -2,7 +2,7 @@
  * Configurações da API
  */
 const API_CONFIG = {
-    baseUrl: "https://3000-ixrz51yjukw2zdmmie7c4-f8549d78.us2.manus.computer",
+    baseUrl: "https://1535-igvs2onvp2ljwje28ndql-b6e55aad.us1.manus.computer",
     staticKey: "1526", // Sua chave padrão
     endpoints: {
         getToken: "/api/token",
@@ -74,4 +74,5 @@ async function getAuthHeaders() {
 // Exporta as configurações e as funções necessárias
 
 export { API_CONFIG, getIntegrationToken, getAuthHeaders };
+
 
